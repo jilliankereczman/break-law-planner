@@ -1,0 +1,803 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Break Law Planner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: navy header band, a control strip, then a planner card (summary, shift timeline, rules) and a second tab with the all-states table. */
+:root {
+  --bg: #F4F6F5;
+  --surface: #FFFFFF;
+  --surface-2: #EEF4F3;
+  --ink: #1E2A33;
+  --muted: #5C6B72;
+  --line: #DCE3E2;
+  --band: #1F3A5F;
+  --band-ink: #FFFFFF;
+  --band-muted: #C3D3E2;
+  --teal: #2A7F7A;
+  --teal-soft: #DDEFEC;
+  --amber: #B9690E;
+  --amber-soft: #FBEBD5;
+  --none: #8A979C;
+  --font-display: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F171B; --surface: #172329; --surface-2: #1C2C32; --ink: #E5EDEF; --muted: #9DAEB4; --line: #2B3C43;
+    --band: #142A42; --band-ink: #F2F6FA; --band-muted: #9FB6CC;
+    --teal: #5BBDB4; --teal-soft: #173A38; --amber: #E8A653; --amber-soft: #3A2A14; --none: #7D8C92;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F171B; --surface: #172329; --surface-2: #1C2C32; --ink: #E5EDEF; --muted: #9DAEB4; --line: #2B3C43;
+  --band: #142A42; --band-ink: #F2F6FA; --band-muted: #9FB6CC;
+  --teal: #5BBDB4; --teal-soft: #173A38; --amber: #E8A653; --amber-soft: #3A2A14; --none: #7D8C92;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1040px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+header.band { background: var(--band); color: var(--band-ink); }
+header.band .wrap { padding-block: 28px 22px; display: grid; gap: 6px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--band-muted); }
+h1 { font-family: var(--font-display); font-size: clamp(28px, 5vw, 40px); line-height: 1.1; margin: 0; text-wrap: balance; }
+header.band p { margin: 0; color: var(--band-muted); max-width: 62ch; }
+.tabs { display: flex; gap: 4px; margin-top: 14px; }
+.tab { appearance: none; border: 0; background: transparent; color: var(--band-muted); font: 600 14px var(--font-body); padding: 9px 14px; border-radius: 8px 8px 0 0; cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--bg); color: var(--ink); }
+.tab:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+main .wrap { padding-block: 22px 40px; display: grid; gap: 18px; }
+
+/* Controls */
+.controls { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: end; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field label { font-size: 13px; font-weight: 600; color: var(--muted); }
+select, input[type="time"], input[type="search"] {
+  width: 100%; font: 500 16px var(--font-body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 46px;
+}
+.presets { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.presets span { font-size: 13px; color: var(--muted); font-weight: 600; margin-right: 2px; }
+.chip { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 600 13px var(--font-body); padding: 6px 12px; border-radius: 999px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.chip:hover { border-color: var(--teal); }
+.chip[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); color: var(--surface); }
+
+/* Planner card */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; display: grid; gap: 20px; min-width: 0; }
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: baseline; }
+.card-head h2 { margin: 0; font-family: var(--font-display); font-size: 24px; }
+.shift-len { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.scope { font-size: 14px; color: var(--muted); margin: -10px 0 0; }
+
+.summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.stat { border-radius: 12px; padding: 16px 18px; display: grid; gap: 4px; min-width: 0; }
+.stat.meal { background: var(--amber-soft); }
+.stat.rest { background: var(--teal-soft); }
+.stat .k { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.stat.meal .k { color: var(--amber); }
+.stat.rest .k { color: var(--teal); }
+.stat .v { font-family: var(--font-display); font-size: 26px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.stat .d { font-size: 14px; color: var(--ink); }
+.stat .pill { justify-self: start; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: var(--surface); margin-top: 4px; }
+.stat.meal .pill { color: var(--amber); }
+.stat.rest .pill { color: var(--teal); }
+.stat.empty .v { color: var(--none); }
+
+/* Timeline */
+.tl-wrap { display: grid; gap: 10px; min-width: 0; }
+.tl-title { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tl-scroll { overflow-x: auto; padding-bottom: 4px; }
+.tl { position: relative; min-width: 520px; height: 122px; }
+.track { position: absolute; left: 0; right: 0; top: 34px; height: 30px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); }
+.win { position: absolute; top: 28px; height: 42px; border: 2px dashed var(--amber); border-radius: 9px; background: color-mix(in srgb, var(--amber) 10%, transparent); }
+.meal-blk { position: absolute; top: 34px; height: 30px; border-radius: 6px; background: var(--amber); }
+.rest-blk { position: absolute; top: 34px; height: 30px; width: 6px; margin-left: -3px; border-radius: 3px; background: var(--teal); }
+.lbl { position: absolute; top: 4px; font-size: 12px; font-weight: 700; white-space: nowrap; transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+.lbl.meal { color: var(--amber); }
+.lbl.rest { color: var(--teal); top: 70px; }
+.tick { position: absolute; top: 98px; font-size: 11.5px; color: var(--muted); transform: translateX(-50%); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tick.edge-l { transform: none; }
+.tick.edge-r { transform: translateX(-100%); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 18px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+.legend .l-win { border: 2px dashed var(--amber); }
+.legend .l-meal { background: var(--amber); }
+.legend .l-rest { background: var(--teal); width: 6px; }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.box h3 { margin: 0 0 8px; font-size: 16px; }
+.box ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.box.watch { background: var(--surface-2); border-radius: 12px; padding: 16px 18px; }
+
+.fed { border-left: 4px solid var(--teal); background: var(--surface-2); border-radius: 10px; padding: 14px 16px; }
+.fed p { margin: 0; }
+
+.foot { font-size: 12.5px; color: var(--muted); max-width: 80ch; }
+.foot a { color: var(--teal); }
+
+/* All states tab */
+.filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.filters .field { flex: 1 1 240px; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--teal); }
+.table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; min-width: 720px; font-size: 14px; }
+th { text-align: left; background: var(--band); color: var(--band-ink); font-weight: 700; padding: 11px 14px; position: sticky; top: 0; }
+td { padding: 11px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+td.no { color: var(--none); font-style: italic; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: var(--surface-2); }
+.count { font-size: 13px; color: var(--muted); }
+.nolaw { font-size: 14px; color: var(--muted); }
+
+@media (max-width: 760px) {
+  .controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .controls .state-field { grid-column: 1 / -1; }
+  .cols { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 480px) {
+  .summary { grid-template-columns: minmax(0, 1fr); }
+  .card { padding: 16px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .meal-blk, .rest-blk, .win { transition: left .25s ease, width .25s ease; }
+}
+</style>
+
+<header class="band">
+  <div class="wrap">
+    <div class="eyebrow">Hourly team member guide</div>
+    <h1>Break Law Planner</h1>
+    <p>Pick a state and a shift to see which meal and rest breaks are required, and when they should happen.</p>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-plan" aria-selected="true" aria-controls="panel-plan">Plan a shift</button>
+      <button class="tab" role="tab" id="tab-all" aria-selected="false" aria-controls="panel-all">All states</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="wrap" id="panel-plan" role="tabpanel" aria-labelledby="tab-plan">
+    <div class="controls">
+      <div class="field state-field">
+        <label for="state">Work state</label>
+        <select id="state"></select>
+      </div>
+      <div class="field">
+        <label for="start">Shift starts</label>
+        <input type="time" id="start" value="09:00" step="900">
+      </div>
+      <div class="field">
+        <label for="end">Shift ends</label>
+        <input type="time" id="end" value="17:30" step="900">
+      </div>
+    </div>
+    <div class="presets" id="presets"><span>Quick shift length:</span></div>
+
+    <article class="card" aria-live="polite">
+      <div class="card-head">
+        <h2 id="r-state">California</h2>
+        <div class="shift-len" id="r-len"></div>
+      </div>
+      <p class="scope" id="r-scope" hidden></p>
+
+      <div class="summary">
+        <div class="stat meal" id="s-meal"></div>
+        <div class="stat rest" id="s-rest"></div>
+      </div>
+
+      <div class="tl-wrap" id="tl-wrap">
+        <div class="tl-title">Your shift at a glance</div>
+        <div class="tl-scroll"><div class="tl" id="tl"></div></div>
+        <div class="legend">
+          <span><i class="l-win"></i>Meal must start in this window</span>
+          <span><i class="l-meal"></i>Suggested meal break</span>
+          <span><i class="l-rest"></i>Suggested rest break</span>
+        </div>
+      </div>
+
+      <div class="cols">
+        <div class="box">
+          <h3>The rules, in plain English</h3>
+          <ul id="r-rules"></ul>
+        </div>
+        <div class="box watch">
+          <h3>Watch out for</h3>
+          <ul id="r-watch"></ul>
+        </div>
+      </div>
+    </article>
+
+    <p class="foot">This tool gives general guidance for adult, non-exempt employees and isn't legal advice. Some industries, union contracts, and small employers have different rules, and minors often have extra protections. Suggested times are examples; any time inside the window works. Based on U.S. Department of Labor state tables and state labor agency guidance. Updated October 2026.</p>
+  </section>
+
+  <section class="wrap" id="panel-all" role="tabpanel" aria-labelledby="tab-all" hidden>
+    <div class="filters">
+      <div class="field">
+        <label for="q">Find a state</label>
+        <input type="search" id="q" placeholder="Type a state name">
+      </div>
+      <label class="toggle" for="only-rest"><input type="checkbox" id="only-rest">Only states with paid rest breaks</label>
+    </div>
+    <div class="count" id="count"></div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>State</th><th>Meal break (unpaid)</th><th>Rest break (paid)</th><th>Fine print</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="nolaw" id="nolaw"></p>
+    <p class="foot">Tap any row to open that state in the planner. General guidance for adult, non-exempt employees. Updated October 2026.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- helpers ----------
+  const fmtClock = (mins) => {
+    mins = ((Math.round(mins) % 1440) + 1440) % 1440;
+    let h = Math.floor(mins / 60), m = mins % 60;
+    const ap = h >= 12 ? "PM" : "AM";
+    h = h % 12; if (h === 0) h = 12;
+    return h + ":" + String(m).padStart(2, "0") + " " + ap;
+  };
+  const fmtHrs = (h) => {
+    const whole = Math.floor(h + 1e-9), m = Math.round((h - whole) * 60);
+    if (m === 0) return whole + (whole === 1 ? " hour" : " hours");
+    if (whole === 0) return m + " min";
+    return whole + " hr " + m + " min";
+  };
+  const plural = (n, w) => n + " " + w + (n === 1 ? "" : "s");
+  const majorFraction = (h) => Math.floor(h / 4) + ((h % 4) > 2 + 1e-9 ? 1 : 0);
+
+  // offset (hours from shift start) of a clock time, or null if outside shift
+  const offsetOf = (clockMin, ctx) => {
+    const off = ((clockMin - ctx.startMin) % 1440 + 1440) % 1440;
+    return off <= ctx.h * 60 + 1e-6 ? off / 60 : null;
+  };
+
+  // ---------- state rules ----------
+  // Each rule: meals(ctx) -> [{len, ws, we, note}] (ws/we = window for START of meal, in hours from shift start)
+  //            rest(ctx)  -> {count, len, note}
+  const R = {
+    CA: {
+      name: "California",
+      meals: ({ h }) => {
+        const m = [];
+        if (h > 5) m.push({ len: 30, ws: 0, we: 5 });
+        if (h > 10) m.push({ len: 30, ws: 5, we: 10 });
+        return m;
+      },
+      rest: ({ h }) => ({ count: h < 3.5 ? 0 : majorFraction(h), len: 10 }),
+      rules: (c) => [
+        "A 30 minute unpaid meal break must start before the end of your 5th hour of work.",
+        "Work more than 10 hours and you get a second 30 minute meal break before the end of your 10th hour.",
+        "You get a 10 minute paid rest break for every 4 hours worked (or major fraction), ideally in the middle of each work period. No rest break is required for shifts under 3.5 hours.",
+        "During meal breaks you must be fully relieved of duty and free to leave."
+      ],
+      watch: (c) => [
+        c.h > 5 && c.h <= 6 ? "Because this shift is 6 hours or less, you and your manager can agree in writing to skip the meal break." : null,
+        c.h > 10 && c.h <= 12 ? "Because this shift is 12 hours or less, the second meal can be waived by agreement, as long as the first one wasn't." : null,
+        "A missed, late, or short meal break means one extra hour of pay. A missed rest break means another extra hour (up to one of each per day).",
+        "Rest breaks can't be combined with meal breaks or used to leave early."
+      ]
+    },
+    CO: {
+      name: "Colorado",
+      meals: ({ h }) => (h > 5 ? [{ len: 30, ws: 1, we: Math.max(1, h - 1) }] : []),
+      rest: ({ h }) => ({ count: majorFraction(h), len: 10 }),
+      rules: () => [
+        "Shifts over 5 hours get a 30 minute meal break, uninterrupted and duty free.",
+        "When practical, the meal break should come at least 1 hour after the shift starts and 1 hour before it ends.",
+        "You get a 10 minute paid rest break for every 4 hours worked (or major fraction), ideally mid-way through each work period."
+      ],
+      watch: () => [
+        "If you can't be fully relieved for your meal, it becomes an on-duty meal and must be paid.",
+        "A rest break that isn't provided must be paid as extra time worked."
+      ]
+    },
+    CT: {
+      name: "Connecticut",
+      meals: ({ h }) => (h >= 7.5 ? [{ len: 30, ws: 2, we: h - 2 }] : []),
+      rest: () => ({ count: 0 }),
+      rules: () => [
+        "Shifts of 7.5 hours or more in a row get a 30 minute meal break.",
+        "It must come after the first 2 hours of work and before the last 2 hours."
+      ],
+      watch: () => ["Some employers are exempt, including those that give at least 30 minutes of paid break time in each 7.5 hour shift, or have a written agreement for a different schedule."]
+    },
+    DE: {
+      name: "Delaware",
+      meals: ({ h }) => (h >= 7.5 ? [{ len: 30, ws: 2, we: h - 2 }] : []),
+      rest: () => ({ count: 0 }),
+      rules: () => [
+        "Shifts of 7.5 hours or more in a row get a 30 minute meal break.",
+        "It must come after the first 2 hours of work and before the last 2 hours."
+      ],
+      watch: () => ["A union contract or written agreement can set a different schedule. Some workplaces (like those with fewer than 5 people on a shift) may be exempt."]
+    },
+    IL: {
+      name: "Illinois",
+      meals: ({ h }) => {
+        const m = [];
+        if (h >= 7.5) {
+          m.push({ len: 20, ws: 0, we: 5 });
+          const extra = Math.floor((h - 7.5) / 4.5 + 1e-9);
+          for (let k = 1; k <= extra; k++) {
+            const ws = 5 + (k - 1) * 4.5, we = Math.min(h - 0.5, 5 + k * 4.5);
+            m.push({ len: 20, ws, we: Math.max(ws, we) });
+          }
+        }
+        return m;
+      },
+      rest: () => ({ count: 0, note: "Hotel room attendants only" }),
+      rules: () => [
+        "Shifts of 7.5 hours or more in a row get a 20 minute meal break, starting no later than 5 hours into the shift.",
+        "You get another 20 minute meal break for each additional 4.5 hours worked beyond the first 7.5 hours."
+      ],
+      watch: () => [
+        "Paid rest breaks are only required for hotel room attendants in Cook County (two 15 minute breaks in a 7+ hour day).",
+        "A union contract can set different meal break terms."
+      ]
+    },
+    KY: {
+      name: "Kentucky",
+      meals: ({ h }) => (h >= 5 ? [{ len: 30, ws: 3, we: Math.min(5, h) }] : []),
+      rest: ({ h }) => ({ count: Math.floor(h / 4 + 1e-9), len: 10 }),
+      rules: () => [
+        "You get a reasonable meal break (usually 30 minutes), as close to the middle of your shift as possible.",
+        "It can't be required before 3 hours into the shift or later than 5 hours into it.",
+        "You get a 10 minute paid rest break for each 4 hours worked, in addition to your meal break."
+      ],
+      watch: () => [
+        "Kentucky doesn't set a minimum shift length for the meal break. This tool shows it for shifts of 5 hours or more.",
+        "Coffee and snack breaks don't count toward your meal break."
+      ]
+    },
+    ME: {
+      name: "Maine",
+      meals: ({ h }) => (h > 6 ? [{ len: 30, ws: 0, we: 6 }] : []),
+      rest: () => ({ count: 0 }),
+      rules: () => ["After 6 hours in a row, you must get the chance to take a 30 minute break (unpaid if you're fully relieved of duty)."],
+      watch: () => ["Small workplaces (fewer than 3 people on duty) where the work allows frequent breaks are exempt, and emergencies are an exception."]
+    },
+    MD: {
+      name: "Maryland",
+      scope: "Applies only to retail employers with 50 or more retail employees. Restaurants are excluded.",
+      meals: ({ h }) => {
+        const m = [];
+        if (h >= 4 && h <= 6) m.push({ len: 15, ws: 1, we: Math.max(1, h - 1) });
+        if (h > 6) m.push({ len: 30, ws: 1, we: h - 1 });
+        if (h >= 8) {
+          const extra = Math.floor((h - 8) / 4 + 1e-9) + 1;
+          for (let k = 0; k < extra; k++) m.push({ len: 15, ws: Math.min(h - 1, 5 + k * 4), we: Math.min(h - 0.5, 8 + k * 4) });
+        }
+        return m;
+      },
+      rest: () => ({ count: 0 }),
+      rules: () => [
+        "Shifts of 4 to 6 hours get a 15 minute break.",
+        "Shifts over 6 hours get a 30 minute break.",
+        "Shifts of 8 hours or more get an extra 15 minute break for every additional 4 hours."
+      ],
+      watch: () => ["Only large retail employers are covered. Other Maryland employers have no state break requirement for adults."]
+    },
+    MA: {
+      name: "Massachusetts",
+      meals: ({ h }) => (h > 6 ? [{ len: 30, ws: 0, we: 6 }] : []),
+      rest: () => ({ count: 0 }),
+      rules: () => [
+        "You can't be required to work more than 6 hours without a 30 minute meal break.",
+        "During the break you must be free of all duties and free to leave."
+      ],
+      watch: () => ["Some manufacturing industries are exempt, and the Attorney General can approve exceptions."]
+    },
+    MN: {
+      name: "Minnesota",
+      meals: ({ h }) => (h >= 8 ? [{ len: 30, ws: 1, we: h - 1 }] : []),
+      rest: ({ h }) => ({ count: Math.floor(h / 4 + 1e-9), len: 15 }),
+      rules: () => [
+        "Shifts of 8 hours or more in a row get enough time to eat a meal (at least 30 minutes).",
+        "Within each 4 hours in a row, you get a paid rest break of at least 15 minutes, or enough time to use the nearest restroom, whichever is longer."
+      ],
+      watch: () => ["Rest breaks under 20 minutes can't be deducted from your hours worked.", "A union contract can set different break terms."]
+    },
+    NE: {
+      name: "Nebraska",
+      scope: "Applies only to assembly plants, workshops, and mechanical businesses.",
+      meals: ({ h }) => (h >= 8 ? [{ len: 30, ws: 1, we: h - 1 }] : []),
+      rest: () => ({ count: 0 }),
+      rules: () => ["Each 8 hour shift gets a 30 minute meal break, which you may take off the premises."],
+      watch: () => ["Only certain industries are covered, and a union contract or written agreement can change the rule."]
+    },
+    NV: {
+      name: "Nevada",
+      meals: ({ h }) => (h >= 8 ? [{ len: 30, ws: 1, we: h - 1 }] : []),
+      rest: ({ h }) => ({ count: h < 3.5 ? 0 : majorFraction(h), len: 10 }),
+      rules: () => [
+        "Shifts of 8 hours in a row get a 30 minute meal break.",
+        "You get a 10 minute paid rest break for every 4 hours worked (or major fraction), ideally mid-way through. No rest break is required for shifts under 3.5 hours."
+      ],
+      watch: () => ["Applies to employers with 2 or more employees at a worksite. Union contracts may differ."]
+    },
+    NH: {
+      name: "New Hampshire",
+      meals: ({ h }) => (h > 5 ? [{ len: 30, ws: 0, we: 5 }] : []),
+      rest: () => ({ count: 0 }),
+      rules: () => ["You can't be required to work more than 5 hours in a row without a 30 minute meal break."],
+      watch: () => ["Not required if it's practical to eat while working and the employer allows it."]
+    },
+    NY: {
+      name: "New York",
+      usesClock: true,
+      meals: (ctx) => {
+        const m = [];
+        const h = ctx.h;
+        const o11 = offsetOf(11 * 60, ctx), o14 = offsetOf(14 * 60, ctx);
+        if (h > 6 && o11 !== null && o14 !== null && o14 > o11) m.push({ len: 30, ws: o11, we: o14 - 0.5, note: "Noon meal" });
+        const startHr = ctx.startMin / 60;
+        const o17 = offsetOf(17 * 60, ctx), o19 = offsetOf(19 * 60, ctx);
+        if (startHr < 11 && o19 !== null && o17 !== null && o19 > o17 && o19 < h) m.push({ len: 20, ws: o17, we: o19 - 1 / 3, note: "Evening meal" });
+        const startsLate = ctx.startMin >= 13 * 60 || ctx.startMin < 6 * 60;
+        if (h > 6 && startsLate) m.push({ len: 45, ws: Math.max(0, h / 2 - 1), we: Math.min(h - 0.75, h / 2 + 0.5), note: "Mid-shift meal" });
+        return m;
+      },
+      rest: () => ({ count: 0 }),
+      rules: () => [
+        "Shifts over 6 hours that cover 11 AM to 2 PM get a 30 minute meal break during that window.",
+        "If your shift starts before 11 AM and runs past 7 PM, you get an extra 20 minute meal break between 5 PM and 7 PM.",
+        "Shifts over 6 hours that start between 1 PM and 6 AM get a 45 minute meal break around the middle of the shift."
+      ],
+      watch: () => ["Factory workers get longer meal breaks (1 hour).", "The Labor Department can approve shorter meal breaks for some employers."]
+    },
+    ND: {
+      name: "North Dakota",
+      meals: ({ h }) => (h > 5 ? [{ len: 30, ws: 1, we: h - 1 }] : []),
+      rest: () => ({ count: 0 }),
+      rules: () => ["Shifts over 5 hours get a 30 minute meal break if the employee wants one, when 2 or more employees are on duty."],
+      watch: () => ["If you're fully relieved of duty, the break can be unpaid. A union contract takes priority."]
+    },
+    OR: {
+      name: "Oregon",
+      meals: ({ h }) => {
+        const m = [];
+        if (h >= 6) m.push(h <= 7 ? { len: 30, ws: 2, we: 5 } : { len: 30, ws: 3, we: 6 });
+        if (h >= 14) m.push({ len: 30, ws: Math.min(h - 2, 9), we: Math.min(h - 1, 12) });
+        return m;
+      },
+      rest: ({ h }) => ({ count: h < 2 ? 0 : Math.floor((h + 2) / 4 + 1e-9), len: 10 }),
+      rules: (c) => [
+        "Shifts of 6 hours or more get a 30 minute unpaid meal break, fully relieved of duty.",
+        c.h <= 7 ? "For shifts of 7 hours or less, the meal break must start between the 2nd and 5th hour." : "For shifts over 7 hours, the meal break must start between the 3rd and 6th hour.",
+        "You get a 10 minute paid rest break for every 4 hours worked (or major part), near the middle of each work segment. Rest breaks are separate from the meal break.",
+        "Shifts of 14 hours or more get a second meal break."
+      ],
+      watch: () => [
+        "If the work truly prevents a duty-free meal, it must be a paid meal break instead.",
+        "Adults working alone in retail or service for under 5 hours may not get a rest break."
+      ]
+    },
+    RI: {
+      name: "Rhode Island",
+      meals: ({ h }) => (h >= 8 ? [{ len: 30, ws: 1, we: h - 1 }] : h >= 6 ? [{ len: 20, ws: 1, we: h - 1 }] : []),
+      rest: () => ({ count: 0 }),
+      rules: () => ["A 6 hour shift gets a 20 minute meal break.", "An 8 hour shift gets a 30 minute meal break."],
+      watch: () => ["Health care facilities and employers with fewer than 3 people on a shift are exempt."]
+    },
+    TN: {
+      name: "Tennessee",
+      meals: ({ h }) => (h >= 6 ? [{ len: 30, ws: 1, we: h - 0.5 }] : []),
+      rest: () => ({ count: 0 }),
+      rules: () => ["Shifts of 6 hours or more in a row get a 30 minute unpaid meal break.", "It can't be scheduled during or before the first hour of work."],
+      watch: () => ["Tipped restaurant employees may waive the break in writing."]
+    },
+    VT: {
+      name: "Vermont",
+      vague: true,
+      meals: () => [],
+      rest: () => ({ count: 0 }),
+      rules: () => ["You must be given reasonable opportunities during your shift to eat and to use the restroom.", "Vermont doesn't set a specific length or schedule for these breaks."],
+      watch: () => ["Short breaks of 5 to 20 minutes must be paid under federal law."]
+    },
+    WA: {
+      name: "Washington",
+      meals: ({ h }) => {
+        const m = [];
+        if (h > 5) m.push({ len: 30, ws: 2, we: 5 });
+        if (h >= 11) m.push({ len: 30, ws: 8, we: Math.min(h - 0.5, 10) });
+        return m;
+      },
+      rest: ({ h }) => ({ count: h <= 3 ? 0 : Math.max(1, majorFraction(h)), len: 10 }),
+      rules: () => [
+        "Shifts over 5 hours get a 30 minute meal break, starting between the 2nd and 5th hour.",
+        "You get a 10 minute paid rest break for every 4 hours worked, as close to the middle of each work period as possible.",
+        "You can't be required to work more than 3 hours in a row without a rest break."
+      ],
+      watch: () => [
+        "If you work 3 or more hours past your normal workday, you get an extra 30 minute meal break before or during the overtime.",
+        "If you have to stay on duty during your meal, it must be paid.",
+        "A missed rest break must be paid as an extra 10 minutes."
+      ]
+    },
+    WV: {
+      name: "West Virginia",
+      meals: ({ h }) => (h >= 6 ? [{ len: 20, ws: 1, we: h - 1 }] : []),
+      rest: () => ({ count: 0 }),
+      rules: () => ["Shifts of 6 hours or more get a 20 minute meal break."],
+      watch: () => ["Not required if employees get regular breaks or are allowed to eat while working."]
+    }
+  };
+
+  const ALL = {
+    AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware",
+    DC: "District of Columbia", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa",
+    KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota",
+    MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico",
+    NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island",
+    SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington",
+    WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming"
+  };
+
+  // Summary rows for the All states tab
+  const TABLE = [
+    ["CA", "30 min before the end of your 5th hour. A 2nd 30 min meal for shifts over 10 hours.", "10 min per 4 hours worked.", "Extra hour of pay for each missed meal or rest break (one of each per day)."],
+    ["CO", "30 min for shifts over 5 hours.", "10 min per 4 hours worked.", "Missed rest breaks are paid as extra time."],
+    ["CT", "30 min for shifts of 7.5+ hours, after the first 2 hours and before the last 2.", null, "Some employers exempt."],
+    ["DE", "30 min for shifts of 7.5+ hours, after the first 2 hours and before the last 2.", null, "Written agreements can differ."],
+    ["IL", "20 min for shifts of 7.5+ hours, starting by your 5th hour. Another 20 min for each extra 4.5 hours.", "Hotel room attendants only.", "Rest rule applies in Cook County only."],
+    ["KY", "A reasonable meal break (usually 30 min) between your 3rd and 5th hour.", "10 min per 4 hours worked.", "Rest breaks are in addition to the meal break."],
+    ["ME", "30 min after 6 hours in a row.", null, "Small workplaces may be exempt."],
+    ["MD", "15 min for 4 to 6 hours; 30 min for over 6 hours; plus 15 min per extra 4 hours after 8.", null, "Large retail employers only."],
+    ["MA", "30 min for shifts over 6 hours.", null, "Must be free to leave."],
+    ["MN", "Enough time to eat a meal (30 min) for shifts of 8+ hours.", "15 min (or enough time to use the restroom) every 4 hours.", "Breaks under 20 min are paid."],
+    ["NE", "30 min per 8 hour shift.", null, "Certain industries only."],
+    ["NV", "30 min for shifts of 8 hours in a row.", "10 min per 4 hours worked.", "None needed under 3.5 hours."],
+    ["NH", "30 min after 5 hours in a row.", null, "Not needed if you can eat while working."],
+    ["NY", "30 min for shifts over 6 hours that cover 11 AM to 2 PM. Extra 20 min for long shifts that run past 7 PM.", null, "Overnight shifts get 45 min mid-shift."],
+    ["ND", "30 min for shifts over 5 hours.", null, "When 2+ employees are on duty."],
+    ["OR", "30 min for shifts of 6+ hours, timed near the middle of the shift.", "10 min per 4 hours worked.", "On-duty meals must be paid."],
+    ["RI", "20 min for a 6 hour shift; 30 min for an 8 hour shift.", null, "Small and health care employers exempt."],
+    ["TN", "30 min for shifts of 6+ hours, not in the first hour.", null, "Tipped staff may waive in writing."],
+    ["VT", "Reasonable time to eat and use the restroom.", "Reasonable time to rest and use the restroom.", "No set length."],
+    ["WA", "30 min for shifts over 5 hours, between your 2nd and 5th hour.", "10 min per 4 hours. No more than 3 hours without a break.", "Missed rest breaks are paid as an extra 10 min."],
+    ["WV", "20 min for shifts of 6+ hours.", null, "Not needed if breaks are already given."]
+  ];
+
+  // ---------- elements ----------
+  const $ = (id) => document.getElementById(id);
+  const stateSel = $("state"), startIn = $("start"), endIn = $("end");
+
+  Object.entries(ALL).forEach(([code, name]) => {
+    const o = document.createElement("option");
+    o.value = code;
+    o.textContent = name + (R[code] ? "" : " (no state break law)");
+    stateSel.appendChild(o);
+  });
+
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem("blp") || "{}"); } catch (e) { saved = {}; }
+  stateSel.value = saved.state && ALL[saved.state] ? saved.state : "CA";
+  if (saved.start) startIn.value = saved.start;
+  if (saved.end) endIn.value = saved.end;
+
+  const PRESETS = [4, 6, 8, 10, 12];
+  const presetWrap = $("presets");
+  PRESETS.forEach((hrs) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = hrs + " hrs"; b.dataset.h = hrs;
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => {
+      const s = toMin(startIn.value || "09:00");
+      endIn.value = toTime(s + hrs * 60);
+      render();
+    });
+    presetWrap.appendChild(b);
+  });
+
+  function toMin(v) { const [h, m] = v.split(":").map(Number); return h * 60 + (m || 0); }
+  function toTime(min) { min = ((min % 1440) + 1440) % 1440; return String(Math.floor(min / 60)).padStart(2, "0") + ":" + String(min % 60).padStart(2, "0"); }
+
+  // ---------- render planner ----------
+  const m0len = (ms) => ms[0].len;
+  function li(list, items) {
+    list.innerHTML = "";
+    items.filter(Boolean).forEach((t) => { const el = document.createElement("li"); el.textContent = t; list.appendChild(el); });
+  }
+
+  function placeBreaks(h, meals, rest) {
+    // suggested meal start: spread meals evenly, clamp to window
+    const placed = meals.map((m, i) => {
+      const ideal = (h * (i + 1)) / (meals.length + 1) - m.len / 120;
+      const q = (x) => Math.round(x * 4) / 4;
+      let s = Math.min(Math.max(q(ideal), m.ws), m.we);
+      if (s > m.we) s = m.we;
+      return { ...m, s };
+    });
+    // rests: spread evenly across shift, nudge away from meals
+    const rests = [];
+    const n = rest.count || 0;
+    for (let i = 0; i < n; i++) {
+      let t = ((i + 0.5) / n) * h;
+      placed.forEach((m) => {
+        const me = m.s + m.len / 60;
+        if (t > m.s - 0.4 && t < me + 0.4) t = t < m.s + m.len / 120 ? m.s - 0.75 : me + 0.75;
+      });
+      rests.push(Math.round(Math.min(Math.max(t, 0.5), h - 0.5) * 4) / 4);
+    }
+    return { placed, rests };
+  }
+
+  function renderTimeline(ctx, placed, rests) {
+    const tl = $("tl");
+    tl.innerHTML = "";
+    const pct = (x) => (x / ctx.h) * 100;
+    const add = (cls, style, text) => {
+      const d = document.createElement("div"); d.className = cls;
+      Object.assign(d.style, style); if (text) d.textContent = text; tl.appendChild(d); return d;
+    };
+    add("track", {});
+    placed.forEach((m) => {
+      const wEnd = Math.min(ctx.h, m.we + m.len / 60);
+      add("win", { left: pct(m.ws) + "%", width: Math.max(1, pct(wEnd - m.ws)) + "%" });
+    });
+    placed.forEach((m) => {
+      add("meal-blk", { left: pct(m.s) + "%", width: Math.max(0.8, pct(m.len / 60)) + "%" });
+      const mid = m.s + m.len / 120;
+      add("lbl meal", { left: Math.min(92, Math.max(8, pct(mid))) + "%" }, m.len + " min meal, " + fmtClock(ctx.startMin + m.s * 60));
+    });
+    rests.forEach((t) => {
+      add("rest-blk", { left: pct(t) + "%" });
+      add("lbl rest", { left: Math.min(94, Math.max(6, pct(t))) + "%" }, fmtClock(ctx.startMin + t * 60));
+    });
+    // hour ticks
+    const step = ctx.h > 10 ? 2 : 1;
+    const firstHour = Math.ceil(ctx.startMin / 60);
+    for (let hr = firstHour; ; hr += step) {
+      const off = (hr * 60 - ctx.startMin) / 60;
+      if (off > ctx.h + 1e-6) break;
+      if (off < 0) continue;
+      const t = add("tick", { left: pct(off) + "%" }, fmtClock(hr * 60).replace(":00", ""));
+      if (pct(off) < 4) t.classList.add("edge-l");
+      if (pct(off) > 96) t.classList.add("edge-r");
+    }
+  }
+
+  function render() {
+    const code = stateSel.value;
+    const startMin = toMin(startIn.value || "09:00");
+    let endMin = toMin(endIn.value || "17:00");
+    let dur = (endMin - startMin + 1440) % 1440;
+    if (dur === 0) dur = 1440;
+    const h = Math.min(dur / 60, 16);
+    const ctx = { h, startMin };
+
+    try { localStorage.setItem("blp", JSON.stringify({ state: code, start: startIn.value, end: endIn.value })); } catch (e) {}
+
+    document.querySelectorAll("#presets .chip").forEach((b) => b.setAttribute("aria-pressed", String(Math.abs(Number(b.dataset.h) - h) < 1e-6)));
+
+    $("r-state").textContent = ALL[code];
+    $("r-len").textContent = fmtClock(startMin) + " to " + fmtClock(startMin + dur) + " · " + fmtHrs(h) + (dur / 60 > 16 ? " (capped at 16)" : "");
+
+    const rule = R[code];
+    const scope = $("r-scope");
+    scope.hidden = !(rule && rule.scope);
+    if (rule && rule.scope) scope.textContent = rule.scope;
+
+    const sMeal = $("s-meal"), sRest = $("s-rest");
+    const tlWrap = $("tl-wrap");
+
+    if (!rule) {
+      sMeal.className = "stat meal empty";
+      sMeal.innerHTML = '<div class="k">Meal breaks</div><div class="v">No state rule</div><div class="d">Follow company policy and your manager’s schedule.</div>';
+      sRest.className = "stat rest empty";
+      sRest.innerHTML = '<div class="k">Rest breaks</div><div class="v">No state rule</div><div class="d">If short breaks are given, they’re paid.</div>';
+      renderTimeline(ctx, [], []);
+      li($("r-rules"), [
+        ALL[code] + " doesn’t have a meal or rest break law for adult employees.",
+        "Federal law doesn’t require breaks either, so your schedule follows company policy.",
+        "Under federal law, short breaks (about 5 to 20 minutes) must be paid when they’re given.",
+        "Meal breaks of 30 minutes or more can be unpaid if you’re fully relieved of all duties."
+      ]);
+      li($("r-watch"), [
+        "Employees under 18 may have extra break rules in this state.",
+        "Clock out for unpaid meal breaks and don’t do any work while clocked out."
+      ]);
+      return;
+    }
+
+    const meals = rule.meals(ctx);
+    const rest = rule.rest(ctx);
+    const { placed, rests } = placeBreaks(h, meals, rest);
+
+    // Meal stat
+    if (rule.vague) {
+      sMeal.className = "stat meal";
+      sMeal.innerHTML = '<div class="k">Meal breaks</div><div class="v">Reasonable time</div><div class="d">No set length or schedule.</div>';
+    } else if (meals.length) {
+      const total = meals.reduce((a, m) => a + m.len, 0);
+      sMeal.className = "stat meal";
+      sMeal.innerHTML = '<div class="k">Meal breaks</div><div class="v">' + plural(meals.length, "break") + "</div>" +
+        '<div class="d">' + (meals.length > 1 ? meals.map((m) => m.len + " min").join(" + ") + " (" + total + " min total)" : m0len(meals) + " min") + "</div><span class=\"pill\">Unpaid · clock out</span>";
+    } else {
+      sMeal.className = "stat meal empty";
+      sMeal.innerHTML = '<div class="k">Meal breaks</div><div class="v">None required</div><div class="d">This shift is too short to trigger a meal break.</div>';
+    }
+
+    // Rest stat
+    if (rule.vague) {
+      sRest.className = "stat rest";
+      sRest.innerHTML = '<div class="k">Rest breaks</div><div class="v">Reasonable time</div><div class="d">To rest and use the restroom.</div><span class="pill">Paid · stay clocked in</span>';
+    } else if (rest.count) {
+      sRest.className = "stat rest";
+      sRest.innerHTML = '<div class="k">Rest breaks</div><div class="v">' + plural(rest.count, "break") + "</div>" +
+        '<div class="d">' + rest.len + " min each" + (code === "MN" ? " (or enough time to use the restroom)" : "") + '</div><span class="pill">Paid · stay clocked in</span>';
+    } else {
+      sRest.className = "stat rest empty";
+      const hasRestLaw = ["CA", "CO", "KY", "MN", "NV", "OR", "WA"].includes(code);
+      sRest.innerHTML = '<div class="k">Rest breaks</div><div class="v">' + (hasRestLaw ? "None required" : "No state rule") + "</div>" +
+        '<div class="d">' + (rest.note ? rest.note + "." : hasRestLaw ? "This shift is too short to trigger a rest break." : "If short breaks are given, they’re paid.") + "</div>";
+    }
+
+    renderTimeline(ctx, placed, rests);
+    tlWrap.hidden = false;
+
+    li($("r-rules"), rule.rules(ctx));
+    li($("r-watch"), (rule.watch ? rule.watch(ctx) : []).concat(["Employees under 18 often have extra break rules."]));
+  }
+
+  [stateSel, startIn, endIn].forEach((el) => { el.addEventListener("change", render); el.addEventListener("input", render); });
+
+  // ---------- all states tab ----------
+  const tbody = $("tbody"), q = $("q"), onlyRest = $("only-rest");
+  function renderTable() {
+    const term = q.value.trim().toLowerCase();
+    tbody.innerHTML = "";
+    let n = 0;
+    TABLE.forEach(([code, meal, rest, fine]) => {
+      const name = ALL[code];
+      if (term && !name.toLowerCase().includes(term)) return;
+      if (onlyRest.checked && (!rest || code === "IL")) return;
+      n++;
+      const tr = document.createElement("tr");
+      tr.className = "clickable"; tr.tabIndex = 0;
+      const cells = [name, meal, rest || "No state requirement", fine];
+      cells.forEach((t, i) => { const td = document.createElement("td"); td.textContent = t; if (i === 2 && !rest) td.className = "no"; tr.appendChild(td); });
+      const open = () => { stateSel.value = code; showTab("plan"); render(); window.scrollTo({ top: 0 }); };
+      tr.addEventListener("click", open);
+      tr.addEventListener("keydown", (e) => { if (e.key === "Enter") open(); });
+      tbody.appendChild(tr);
+    });
+    $("count").textContent = n + (n === 1 ? " state" : " states") + " shown";
+    const none = Object.entries(ALL).filter(([c]) => !R[c]).map(([, nm]) => nm);
+    $("nolaw").textContent = "No state meal or rest break law for adults: " + none.join(", ") + ". In these states, company policy applies, and short breaks that are given must be paid.";
+  }
+  q.addEventListener("input", renderTable);
+  onlyRest.addEventListener("change", renderTable);
+
+  // ---------- tabs ----------
+  function showTab(which) {
+    const plan = which === "plan";
+    $("tab-plan").setAttribute("aria-selected", String(plan));
+    $("tab-all").setAttribute("aria-selected", String(!plan));
+    $("panel-plan").hidden = !plan;
+    $("panel-all").hidden = plan;
+  }
+  $("tab-plan").addEventListener("click", () => showTab("plan"));
+  $("tab-all").addEventListener("click", () => showTab("all"));
+  if (location.hash === "#all") showTab("all");
+
+  render();
+  renderTable();
+})();
+</script>
+
+</body></html>
